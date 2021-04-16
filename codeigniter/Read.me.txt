@@ -1,0 +1,155 @@
+Requisitos para ejecutar el proyecto en local
+- El desarrollo ha sido realizado en un entorno Linux (Ubuntu, concretamente) aunque se podría instalar en Windows sin problema
+Se requiere PHP 7.4 (Probablemente algunas versiones inferiores funcionarian sin problema), apache y MariaDB 10
+Configurar el .htaccess (he subido el mio) y tener apache configurado para que las url sean amigables (opcional pero deseable)
+Detalles de esto:
+
+
+
+Mi arbol de directorios era:
+/var/www/html/codeigniter   y dentro el proyecto. 
+A los endpoint accedi por navegador o postman a "localhost/codeigniter/NombreControlador/NombreEndpoint"
+
+En entorno Windows la instalación sería parecida, usando XAMPP o WAMP y configurando las URL correspondientes.
+
+
+Como no se especificó en la prueba en que sistema operativo desarrollarla lo hice en Linux por comodidad personal
+
+Se adjunta un fichero en codeigniter/sql con un .sql que debe ser importado para crear la base de datos y tablas
+
+Se requiere crear un usuario "user1" con contraseña "oretania":
+CREATE USER 'user1'@localhost IDENTIFIED BY 'oretania';
+
+O bien cambiar en el fichero database.php el usuario y contraseña por el que quieras utilizar.
+Dicho usuario requerira permisos de lectura/escritura sobre la DB
+
+
+Comentarios SQL:
+A falta de especificaciones, voy a presuponer que:
+- El nombre de una empresa y el email no tiene mas de 50 caracteres.
+- El numero de cuenta corriente tiene 24 caracteres siempre (Al menos eso dice Google y no seré yo quien le lleve la contraria). 
+
+Almacenar un número de cuenta bancaria puede ser peliagudo. Aquí plantearía dos opciones, en función de como se realizase el desarrollo:
+1. Guardar solo los 4 últimos digitos. Esto permitiria ofrecer al usuario meter su tarjeta bancaria cuando se requiriese hacer un pago
+   y poder asi verificar esos 4 digitos, pero obligando siempre al usuario a meter el número. O bien que estuviese todo integrado con una pasarela
+   de pago como Stripe (Quizás estoy pensando esto mas de la cuenta respecto a lo que pide la prueba).
+
+2. Guardar el número completo pero bien encriptado.
+
+Voy a optar por la opción 1, por tanto el campo va a ser char(4). Además voy a presuponer que el frontal me envia solo esos 4 digitos,
+no el número completo
+	
+
+- De la fecha de creación de la empresa no nos interesan H:i:s, de ser relevantes el tipo Date no seria correcto.
+
+- Desconozco como de larga sera la URL de un logo, pero me parece exagerado ponerle un tipo TEXT, por eso le he puesto varchar(999).
+
+- He puesto el status como boolean ya que solo puede adoptar dos opciones "abierta" y "cerrada". Podriamos usar tinyint
+  o un enum. O previendo que el "status" pudieran ser varios status y que tuviesen mas especificaciones incluso podria ser planteable que esa informacion
+  estuviese en una tabla aparte y en esta solo el ID de referencia a dicha tabla.
+
+- Aunque no se piden, se propone que añadas campos extra que consideres oportunos. He metido created_at, updated_at, deleted_at y deleted,
+(Este último para realizar borrados lógicos, cosa que no se pide en la prueba pero sería previsible en un desarrollo real)
+
+
+Detalles varios:
+
+Las respuestas de texto notificando errores (Por ejemplo en las validaciones) las he devuelto en español
+en vez de en inglés, ya que desconozco el protocolo habitual que seguís para eso
+(Quizas multiidioma con los textos en cada idioma en /language?) Por simplificar he puesto el texto directamente en español
+La codificación (variables, métodos etc) la he hecho en inglés, deduzco que era lo esperado ya que los campos de las tablas especificadas en el documento estaban en inglés
+
+Lo realizado devuelve JSON y e imitado el formato de la API de Gorest (Devolviendo code y data, dentro de esta los datos)
+por ser coherente con la integración con esa API lo he hecho así.
+
+En general, no he documentado código de la prueba, en un desarrollo real debería.
+
+
+Misión 1. Apartado B:
+Aqui me surge una duda y es que especifica que se pueden editar todos los campos menos el “CIF”,  el “date”, su “email” y su “id”
+La cosa es que un update yo en principio lo haria con el ID, es decir, el ID sería válido como parametro para el update, no para ser cambiado
+Voy a utilizar para el update el campo name, ya que es UNIQUE no habrá problema pero pienso que lo suyo es hacerlo por ID.
+
+
+
+Misión 1. Apartado C
+Justificar que campos traer para el listado
+Dada la naturaleza del listado, traeremos
+- ID: Para usarlo para que contraten el hipotetico servicio en una hipotetica tabla de contrataciones 
+      donde este ID seria la FK de dicha tabla
+- name: Para mostrarlo
+- logo: Para mostrarlo
+- status: Puede ser interesante este dato para el usuario a la hora de elegir empresa
+- email: Podriamos considerarlo como método de contacto del usuario a la empresa, para consultar dudas etc
+
+
+Misión 1. Reto C
+- ¿Por qué crees que el método anterior puede no ser del todo seguro?
++ La pregunta hace referencia a la seguridad de la API editar. Se pide añadir un token
+ lo cual le da alguna seguridad extra, pero realmente se sigue teniendo el mismo problema
+ que sin token, ya que si alguien ha base de peticiones por fuerza bruta consigue dar con un
+ token válido podrá editar dicha empresa. Seguramente le resultará mas costoso, pero no es imposible.
+
+
+Misión 2. 
+Me gustaría comentar que por tema tiempo no he realizado algunas validaciones backend, como sería que $page 
+fuese un número válido, logicamente habría que implementarlas. Aunque trasteando la API de gorest veo que acepta 'page' aunque
+pongas algo que no sea un numero.
+
+En el apartado C, se especifica que formato exacto debe tener la respuesta. En la misma, no aparecen los datos 'created_at' ni 'updated_at'
+que si que provienen del endpoint, no los he quitado porque imagino que no es relevante, pero es de esas cosas que preguntaría a quien correspondiese para saber si hay que quitarlos de la respuesta o no.
+
+Tampoco se especifica que devolver en caso de que "posts" venga vacio (un usuario sin post), asi que he devuelto esa misma respuesta
+pero con posts vacio. Ni se especifica que hacer en caso de que el ID del usuario no exista, asi que en tal caso devuelvo la respuesta
+que da la API en esa situación
+
+Mision 2, Reto A.
+Se especifica que limit solo sea multiplos de 20, pero no se especifica que hacer en caso de que venga algo distinto a 20.
+Dado que en la mision 3 se habla de peticiones sospechosas, la registraré como tal, pero en lugar de devolver un error,
+por simplificar, voy a hacer que si "limit" no es multiplo de 20 se le asigne 20
+
+
+Misión 3.
+Implementados Logs en:
+- Companies/create y Companies/update: Errores de validación que no deberían haber pasado las validaciones
+del frontal de forma normal. Esas validaciones están realizadas en base a las especificaciones de los campos
+dadas en la prueba
+
+- Companies/list: Si se recibe un número de página imposible
+
+- Companies/search: Si se recibe una descripción cuya longitud sea menor de 3
+
+- Owners/owners: Si se recibe un limit que no sea multiplo de 20 
+
+- Owners/favorites: Si se intenta asignar en favorito una empresa que ya está en favoritos o una empresa que no exista
+ 
+Apartado B
+Efectivamente, la cantidad de peticiones es elevadisima, sobretodo si un usuario tiene muchos posts ya que por cada
+post hay que recoger su comment.
+
+Si aceptamos la premisa de que esa información rara vez cambia, lo que se podría hacer es que, la primera vez que se pida la información,
+almacenar esos datos en nuestra base de datos y cada vez que se modifique algún dato, actualizar nuestras tablas.
+De esa forma, al hacer las peticiones de consulta, en vez de llamar a la API, llamariamos a nuestras tablas, pudiendo optimizar el acceso a dicha información
+en una sola consulta SQL que pida de una sentada los usuarios, sus posts y los comentarios de sus posts.
+
+Desconozco si una tecnología de base de datos NoSQL pudiera ser mas óptima para todo esto, dado que en la prueba se ha hecho todo con SQL
+es esta la opción que propongo
+
+
+Retos mision 3
+Apartado B.
+Podríamos interpretar como hacker a alguien que realice una cantidad elevada de peticiones incorrectas
+Entendiendo así por peticiones incorrectas lo siguiente:
+- Validaciones: Si el frontal tiene las validaciones pertinentes, al backend no deberían llegar datos invalidos, si llegan y además lo hacen en 
+cantidad eso podría ser un indicativo de ataque por fuerza bruta
+- Sql Injections: Aparte de que harian saltar las validaciones, podriamos detectar palabras claves como "Delete", "table, "select" "1=1"
+y otra serie de combinaciones que nos lleven a pensar que estamos siendo victimas de un intento de ataque.
+
+Respecto a ignorar esas peticiones, se podrían hacer varias cosas, como limitar la cantidad de llamadas que se pueden realizar a la API desde una
+IP especifica, por ejemplo, 100 peticiones en 10 segundos sería un claro sintoma de que no es un usuario normal.
+
+El último punto "¿Te atreves a implementar un sistema sencillo para demostrar como lo harías?" lo voy a dejar sin realizar por falta de tiempo,
+aun así la realidad es que no soy un experto en seguridad informática, podría realizar algún sistema muy artesanal de comprobaciones de lo que he mencionado:
+cantidad de peticiones por minuto de cada IP (Almacenando dichas peticiones en base de datos, y al llegar a una cantidad especifica bloquear dicha direccion), hacer una lista negra de palabras sospechosas y contabilizar cuantas peticiones con dichas palabras se realizan, etc
+
+
